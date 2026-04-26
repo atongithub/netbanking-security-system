@@ -88,4 +88,4 @@ Frontend API base: `http://localhost:5000/api/`
 
 ## License
 
-Proprietary - Nexus Net Banking System
+This project is licensed under the MIT License.
