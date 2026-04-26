@@ -7,13 +7,66 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700;900&family=Playfair+Display:ital,wght@1,400;1,700;1,900&family=JetBrains+Mono&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #fbfaf8; color: #1a1a1a; }
+        body { font-family: 'Inter', sans-serif; background-color: #fbfaf8; color: #1a1a1a; transition: background-color 0.3s, color 0.3s; }
+        body.dark-mode { background-color: #0f0f0f; color: #f5f5f5; }
         .serif { font-family: 'Playfair Display', serif; }
         .mono { font-family: 'JetBrains Mono', monospace; }
         .admin-accent { color: #5046e5; }
+        body.dark-mode .admin-accent { color: #7c3aed; }
+        
+        /* Cards and borders */
+        .card-light { background-color: #ffffff; border-color: rgba(0,0,0,0.1); }
+        body.dark-mode .card-light { background-color: #1a1a1a; border-color: rgba(255,255,255,0.1); }
+        
+        .text-neutral-300 { color: #d4d4d8; }
+        body.dark-mode .text-neutral-300 { color: #71717a; }
+        
+        .text-neutral-400 { color: #a1a1aa; }
+        body.dark-mode .text-neutral-400 { color: #52525b; }
+        
+        .text-neutral-500 { color: #78716b; }
+        body.dark-mode .text-neutral-500 { color: #515151; }
+        
+        .border-black\/10 { border-color: rgba(0,0,0,0.1); }
+        body.dark-mode .border-black\/10 { border-color: rgba(255,255,255,0.1); }
+        
+        .bg-white { background-color: #ffffff; }
+        body.dark-mode .bg-white { background-color: #1a1a1a; }
+        
+        .hover\:bg-neutral-50:hover { background-color: #f9fafb; }
+        body.dark-mode .hover\:bg-neutral-50:hover { background-color: #262626; }
+        
+        /* Modal styles */
+        #modalOverlay { background-color: rgba(0,0,0,0.3); }
+        body.dark-mode #modalOverlay { background-color: rgba(0,0,0,0.7); }
+        
+        #formModal { background-color: #ffffff; }
+        body.dark-mode #formModal { background-color: #1a1a1a; }
+        
+        input[type="text"] { background-color: #ffffff; border-color: rgba(0,0,0,0.1); color: #1a1a1a; }
+        body.dark-mode input[type="text"] { background-color: #262626; border-color: rgba(255,255,255,0.1); color: #f5f5f5; }
+        
+        input[readonly] { background-color: #f9fafb; }
+        body.dark-mode input[readonly] { background-color: #333333; }
+        
+        /* Table styles */
+        table { color: inherit; }
+        tbody tr:hover { background-color: #f9fafb; }
+        body.dark-mode tbody tr:hover { background-color: #262626; }
+        
+        /* Theme toggle button */
+        .theme-toggle { position: fixed; top: 20px; right: 20px; z-index: 100; }
+        .theme-toggle button { background: rgba(0,0,0,0.1); border: 1px solid rgba(0,0,0,0.2); padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 18px; transition: all 0.3s; }
+        body.dark-mode .theme-toggle button { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #f5f5f5; }
+        .theme-toggle button:hover { background: rgba(0,0,0,0.2); }
+        body.dark-mode .theme-toggle button:hover { background: rgba(255,255,255,0.2); }
     </style>
 </head>
 <body class="p-12 space-y-12 max-w-7xl mx-auto">
+    <!-- Theme Toggle -->
+    <div class="theme-toggle">
+        <button onclick="toggleDarkMode()" title="Toggle Dark Mode">🌙</button>
+    </div>
     <!-- Header -->
     <div class="flex justify-between items-start">
         <div class="max-w-xl">
@@ -31,16 +84,17 @@
     </div>
 
     <!-- Table Selector -->
-    <div class="bg-white border border-black/10 p-10">
+    <div class="bg-white card-light border border-black/10 p-10">
         <h2 class="serif text-2xl italic tracking-tight mb-6">Available Tables</h2>
         <div id="tableList" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
     </div>
 
     <!-- Table Viewer -->
-    <div class="bg-white border border-black/10" id="tableViewerContainer" style="display: none;">
+    <div class="bg-white card-light border border-black/10" id="tableViewerContainer" style="display: none;">
         <div class="px-10 py-8 border-b border-black/10 flex justify-between items-center">
             <h2 class="serif text-2xl italic tracking-tight" id="tableName">Select a table</h2>
             <div class="flex gap-6 items-center">
+                <button onclick="openCreateModal()" class="text-[10px] uppercase tracking-[0.3em] font-black hover:underline text-green-600">+ Create</button>
                 <button onclick="refreshTable()" class="text-[10px] uppercase tracking-[0.3em] font-black hover:underline">Refresh</button>
             </div>
         </div>
@@ -57,10 +111,48 @@
             </table>
         </div>
     </div>
+
+    <!-- Create/Edit Modal -->
+    <div id="modalOverlay" onclick="closeModal()" class="fixed inset-0 bg-black/30 backdrop-blur-sm" style="display: none; z-index: 1000;"></div>
+    <div id="formModal" class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white card-light border border-black/10 p-12 max-w-2xl w-full max-h-96 overflow-y-auto" style="display: none; z-index: 1001;">
+        <div class="flex justify-between items-center mb-8">
+            <h3 class="serif text-2xl italic tracking-tight" id="modalTitle">Create Record</h3>
+            <button onclick="closeModal()" class="text-2xl hover:opacity-50">&times;</button>
+        </div>
+        <form id="dataForm" class="space-y-4">
+            <div id="formFields"></div>
+            <div class="flex gap-4 justify-end pt-6 border-t border-black/10">
+                <button type="button" onclick="closeModal()" class="px-6 py-2 border border-black/10 hover:bg-neutral-50">Cancel</button>
+                <button type="submit" class="px-6 py-2 bg-blue-600 text-white hover:bg-blue-700">Save</button>
+            </div>
+        </form>
+    </div>
     <script>
+        // Dark mode toggle
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+            localStorage.setItem('darkMode', document.body.classList.contains('dark-mode') ? 'true' : 'false');
+            updateThemeToggleButton();
+        }
+
+        function updateThemeToggleButton() {
+            const button = document.querySelector('.theme-toggle button');
+            if (button) button.textContent = document.body.classList.contains('dark-mode') ? '☀️' : '🌙';
+        }
+
+        // On load, apply dark mode if set
+        document.addEventListener('DOMContentLoaded', () => {
+            if (localStorage.getItem('darkMode') === 'true') {
+                document.body.classList.add('dark-mode');
+            } else {
+                document.body.classList.remove('dark-mode');
+            }
+            updateThemeToggleButton();
+        });
+
         if (localStorage.getItem('nexus_role') !== 'admin') window.location.href = '/index.html';
 
-        let currentTable = null, currentColumns = [], currentRows = [];
+        let currentTable = null, currentColumns = [], currentRows = [], editingRow = null;
 
         async function loadTables() {
             const res = await fetch('/api/admin/tables');
@@ -87,11 +179,8 @@
             renderTable();
         }
 
-        function renderTable() {
-            // Extract column names from the columns array
-            const colNames = currentColumns.map(col => {
-                // col might be an array like [fieldname, type, null, key, default, extra]
-                // or an object with properties
+        function getColumnNames() {
+            return currentColumns.map(col => {
                 if (Array.isArray(col)) {
                     return col[0];
                 } else if (typeof col === 'object' && col.Field) {
@@ -100,8 +189,10 @@
                     return col[0];
                 }
             });
-            
-            console.log('Column names:', colNames);
+        }
+
+        function renderTable() {
+            const colNames = getColumnNames();
             
             // Render headers
             const headerRow = document.getElementById('headerRow');
@@ -120,7 +211,8 @@
                 const pkValue = row[colNames[0]];
                 return `<tr class="hover:bg-neutral-50/50 transition-colors">
                     ${cells}
-                    <td class="px-10 py-6">
+                    <td class="px-10 py-6 space-x-4 flex items-center">
+                        <button onclick="openEditModal(${JSON.stringify(row).replace(/"/g, '&quot;')})" class="text-[10px] uppercase tracking-widest font-black text-blue-600 hover:underline">Edit</button>
                         <button onclick="deleteRow(${pkValue})" class="text-[10px] uppercase tracking-widest font-black text-red-600 hover:underline">Delete</button>
                     </td>
                 </tr>`;
@@ -128,8 +220,97 @@
             tableBody.innerHTML = rowsHtml;
         }
 
+        function openCreateModal() {
+            editingRow = null;
+            document.getElementById('modalTitle').textContent = 'Create New Record';
+            buildFormFields();
+            openModal();
+        }
+
+        function openEditModal(rowData) {
+            editingRow = rowData;
+            document.getElementById('modalTitle').textContent = 'Edit Record';
+            buildFormFields(rowData);
+            openModal();
+        }
+
+        function buildFormFields(rowData = null) {
+            const colNames = getColumnNames();
+            const formFields = document.getElementById('formFields');
+            formFields.innerHTML = colNames.map(colName => {
+                const value = rowData ? (rowData[colName] || '') : '';
+                const isReadOnly = rowData && colNames.indexOf(colName) === 0; // First column (PK) is read-only when editing
+                return `
+                    <div class="space-y-1">
+                        <label class="text-xs font-bold uppercase tracking-widest">${colName}</label>
+                        <input type="text" name="${colName}" value="${value}" ${isReadOnly ? 'readonly' : ''} class="w-full px-4 py-2 border border-black/10 ${isReadOnly ? 'bg-neutral-50' : ''}" />
+                    </div>
+                `;
+            }).join('');
+            
+            // Add hidden field for form type
+            const form = document.getElementById('dataForm');
+            form.onsubmit = (e) => submitForm(e);
+        }
+
+        function openModal() {
+            document.getElementById('modalOverlay').style.display = 'block';
+            document.getElementById('formModal').style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('modalOverlay').style.display = 'none';
+            document.getElementById('formModal').style.display = 'none';
+            editingRow = null;
+        }
+
+        async function submitForm(e) {
+            e.preventDefault();
+            const formData = new FormData(document.getElementById('dataForm'));
+            const data = Object.fromEntries(formData);
+            
+            // Convert numeric strings to numbers if possible
+            Object.keys(data).forEach(key => {
+                if (!isNaN(data[key]) && data[key] !== '') {
+                    data[key] = Number(data[key]);
+                }
+            });
+            
+            try {
+                let res;
+                if (editingRow) {
+                    // Edit existing row
+                    const colNames = getColumnNames();
+                    const pkValue = editingRow[colNames[0]];
+                    res = await fetch(`/api/admin/table/${currentTable}/${pkValue}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+                } else {
+                    // Create new row
+                    res = await fetch(`/api/admin/table/${currentTable}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+                }
+                
+                if (res.ok) {
+                    closeModal();
+                    loadTableData(currentTable);
+                } else {
+                    const error = await res.json();
+                    alert(`Error: ${error.error || 'Operation failed'}`);
+                }
+            } catch (err) {
+                console.error('Form submission error:', err);
+                alert('Form submission failed');
+            }
+        }
+
         async function deleteRow(pk) {
-            if (!confirm('Delete this row?')) return;
+            if (!confirm('Delete this row? This action cannot be undone.')) return;
             const res = await fetch(`/api/admin/table/${currentTable}/${pk}`, { method: 'DELETE' });
             if (res.ok) {
                 loadTableData(currentTable);
