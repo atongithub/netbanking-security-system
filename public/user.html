@@ -208,7 +208,24 @@
             window.location.href = '/index.html';
         }
 
-        function logout() {
+        async function logout() {
+            try {
+                // Get session_id from localStorage if available
+                const sessionId = localStorage.getItem('nexus_session_id');
+                
+                // Record logout on backend
+                if (sessionId) {
+                    await fetch('/api/logout', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ session_id: sessionId })
+                    }).catch(err => console.log('Logout API error:', err));
+                }
+            } catch (error) {
+                console.log('Error during logout:', error);
+            }
+            
+            // Clear local storage and redirect
             localStorage.clear();
             window.location.href = '/index.html';
         }

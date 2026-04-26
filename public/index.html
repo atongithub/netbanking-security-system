@@ -117,6 +117,7 @@
                     localStorage.setItem('nexus_role', data.role);
                     localStorage.setItem('nexus_user', data.user.username);
                     localStorage.setItem('nexus_user_id', data.user.id);
+                    localStorage.setItem('nexus_session_id', data.session_id);
                     
                     if (data.role === 'admin') {
                         window.location.href = '/admin.html';
