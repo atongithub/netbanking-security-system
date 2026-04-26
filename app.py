@@ -622,6 +622,56 @@ def update_table_row(table_name, row_id):
         set_clause = ', '.join([f"{k}=%s" for k in data.keys()])
         values = list(data.values()) + [row_id]
         
+        # Validate and format datetime fields
+        datetime_fields = ['last_used_at', 'timestamp', 'attempt_time', 'created_at', 'updated_at', 'login_time', 'logout_time']
+        updated_values = []
+        for i, key in enumerate(data.keys()):
+            val = values[i]
+            if key in datetime_fields and val:
+                try:
+                    from datetime import datetime
+                    from email.utils import parsedate_to_datetime
+                    
+                    value_str = str(val).strip()
+                    if not value_str or value_str.lower() == 'null':
+                        updated_values.append(None)
+                        continue
+                    
+                    dt = None
+                    
+                    # Try ISO format first
+                    try:
+                        dt = datetime.fromisoformat(value_str.replace('Z', '+00:00'))
+                    except:
+                        pass
+                    
+                    # Try HTTP date format
+                    if not dt:
+                        try:
+                            dt = parsedate_to_datetime(value_str)
+                        except:
+                            pass
+                    
+                    # Try common datetime formats
+                    if not dt:
+                        for fmt in ['%Y-%m-%d %H:%M:%S', '%d/%m/%Y %H:%M:%S', '%m/%d/%Y %H:%M:%S', '%Y-%m-%dT%H:%M:%S']:
+                            try:
+                                dt = datetime.strptime(value_str, fmt)
+                                break
+                            except:
+                                pass
+                    
+                    if dt:
+                        updated_values.append(dt.strftime('%Y-%m-%d %H:%M:%S'))
+                    else:
+                        updated_values.append(value_str)
+                except:
+                    updated_values.append(val)
+            else:
+                updated_values.append(val)
+        
+        values = updated_values + [row_id]
+        
         cursor.execute(f"UPDATE {table_name} SET {set_clause} WHERE {pk_col}=%s", values)
         conn.commit()
         cursor.close()
@@ -630,7 +680,7 @@ def update_table_row(table_name, row_id):
         return jsonify({'success': True, 'message': 'Row updated'}), 200
     except Exception as e:
         print(f"Update row error: {e}")
-        return jsonify({'error': 'Update failed'}), 500
+        return jsonify({'error': f'Update failed: {str(e)}'}), 500
 
 @app.route('/api/admin/table/<table_name>', methods=['POST'])
 def insert_table_row(table_name):
@@ -648,6 +698,59 @@ def insert_table_row(table_name):
             return jsonify({'error': 'Invalid table'}), 400
         
         data = request.json
+        
+        # Validate and format datetime fields
+        datetime_fields = ['last_used_at', 'timestamp', 'attempt_time', 'created_at', 'updated_at', 'login_time', 'logout_time']
+        for field in datetime_fields:
+            if field in data and data[field]:
+                try:
+                    from datetime import datetime
+                    from email.utils import parsedate_to_datetime
+                    
+                    value_str = str(data[field]).strip()
+                    if not value_str or value_str.lower() == 'null':
+                        data[field] = None
+                        continue
+                    
+                    # Try parsing different datetime formats
+                    dt = None
+                    
+                    # Try ISO format first
+                    try:
+                        dt = datetime.fromisoformat(value_str.replace('Z', '+00:00'))
+                    except:
+                        pass
+                    
+                    # Try HTTP date format (Sat, 10 Feb 2024 09:30:00 GMT)
+                    if not dt:
+                        try:
+                            dt = parsedate_to_datetime(value_str)
+                        except:
+                            pass
+                    
+                    # Try common datetime formats
+                    if not dt:
+                        for fmt in ['%Y-%m-%d %H:%M:%S', '%d/%m/%Y %H:%M:%S', '%m/%d/%Y %H:%M:%S', '%Y-%m-%dT%H:%M:%S']:
+                            try:
+                                dt = datetime.strptime(value_str, fmt)
+                                break
+                            except:
+                                pass
+                    
+                    if dt:
+                        data[field] = dt.strftime('%Y-%m-%d %H:%M:%S')
+                    else:
+                        # If all parsing fails, try using it as-is and let MySQL handle it
+                        data[field] = value_str
+                except Exception as parse_error:
+                    print(f"Error parsing {field}: {parse_error}")
+                    data[field] = value_str
+        
+        # Handle empty strings as NULL
+        for key in data:
+            if data[key] == '':
+                data[key] = None
+        
         conn = get_db_connection()
         cursor = conn.cursor()
         
@@ -664,7 +767,7 @@ def insert_table_row(table_name):
         return jsonify({'success': True, 'id': new_id}), 201
     except Exception as e:
         print(f"Insert row error: {e}")
-        return jsonify({'error': 'Insert failed'}), 500
+        return jsonify({'error': f'Insert failed: {str(e)}'}), 500
 
 @app.route('/api/admin/table/<table_name>/<row_id>', methods=['DELETE'])
 def delete_table_row(table_name, row_id):
