@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus Bank | Private Wealth</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700;900&family=Playfair+Display:ital,wght@1,400;1,700;1,900&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #fbfaf8; color: #1a1a1a; }
+        .serif { font-family: 'Playfair Display', serif; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        .user-accent { color: #1a1a1a; }
+    </style>
+</head>
+<body class="p-12 space-y-12 max-w-6xl mx-auto">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+        <div>
+            <p class="text-[10px] uppercase tracking-[0.3em] font-black text-neutral-400 mb-2">Private Wealth Terminal</p>
+            <h1 id="welcomeText" class="serif text-5xl italic tracking-tight leading-none">Welcome back</h1>
+        </div>
+        <div class="flex items-center gap-8">
+            <div class="text-right">
+                <p class="text-[10px] uppercase font-bold tracking-widest text-neutral-300">Secure Session</p>
+                <div id="currentTime" class="text-xl font-light tracking-tighter italic">--:--:--</div>
+            </div>
+            <button onclick="logout()" class="text-[10px] uppercase tracking-widest font-black hover:underline cursor-pointer">Logout</button>
+        </div>
+    </div>
+
+    <!-- Main Layout -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-12">
+        <div class="lg:col-span-2 space-y-12">
+            <!-- Balance Card -->
+            <div class="relative bg-white border border-black/10 p-12 overflow-hidden shadow-sm">
+                <div class="relative z-10 flex flex-col justify-between h-full min-h-[240px]">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-[10px] uppercase tracking-[0.3em] font-bold text-neutral-400 mb-2">Available Liquidity</p>
+                            <h2 id="balance" class="serif text-6xl italic tracking-tighter">₹0</h2>
+                        </div>
+                        <div id="bankInitial" class="h-12 w-12 border border-black/10 flex items-center justify-center italic serif text-2xl">N</div>
+                    </div>
+                    
+                    <div class="flex justify-between items-end gap-6 border-t border-black/5 pt-8 mt-12">
+                        <div class="space-y-1">
+                            <p id="accountRef" class="text-sm font-medium tracking-[0.2em] uppercase opacity-80">NEXUS PRIVATE •••• ----</p>
+                            <p id="accountMeta" class="text-[9px] font-bold uppercase tracking-widest text-neutral-300">STATUS: INITIALIZING • TYPE: --</p>
+                        </div>
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg" alt="Visa" class="h-4 opacity-20">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transaction Ledger -->
+            <div class="bg-white border border-black/10">
+                <div class="px-10 py-8 border-b border-black/10 flex justify-between items-center">
+                    <h2 class="serif text-2xl italic tracking-tight">Activity Ledger</h2>
+                    <button class="text-[10px] uppercase tracking-widest font-black hover:underline">Download Documentation</button>
+                </div>
+                <div id="transactionBody" class="divide-y divide-black/5">
+                    <!-- Transactions go here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="space-y-12">
+            <div class="bg-white border border-black/10 p-10">
+                <h3 class="serif text-xl italic mb-8 border-b border-black/10 pb-4">Security Protocol</h3>
+                <div class="space-y-6">
+                    <div class="flex items-center justify-between">
+                        <p class="text-[10px] uppercase font-bold tracking-widest text-neutral-400">Identity Guard</p>
+                        <div class="w-8 h-px bg-black opacity-10"></div>
+                        <span class="text-[10px] uppercase font-black text-emerald-700 tracking-widest">ENABLED</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <p class="text-[10px] uppercase font-bold tracking-widest text-neutral-400">Account Lock</p>
+                        <div class="w-8 h-px bg-black opacity-10"></div>
+                        <span class="text-[10px] uppercase font-black text-neutral-300 tracking-widest">OFF</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-black p-10 text-white">
+                <p class="text-[10px] uppercase tracking-[0.3em] font-bold mb-4 opacity-40">nexus institutional</p>
+                <h3 class="serif text-2xl italic mb-8 leading-tight">Privileged insights into capital markets.</h3>
+                <button class="w-full text-left py-4 border-t border-white/20 text-[10px] uppercase tracking-widest flex justify-between items-center group">
+                    <span>Access Outlook</span>
+                    <span class="group-hover:translate-x-2 transition-transform">&rarr;</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        if (localStorage.getItem('nexus_role') !== 'user') window.location.href = '/index.html';
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = '/index.html';
+        }
+
+        setInterval(() => {
+            document.getElementById('currentTime').textContent = new Date().toLocaleTimeString();
+        }, 1000);
+
+        async function loadProfile() {
+            const user = localStorage.getItem('nexus_user');
+            const res = await fetch(`/api/user/${user}/overview`);
+            const data = await res.json();
+
+            document.getElementById('welcomeText').textContent = `Welcome back, ${data.profile.firstName}`;
+            document.getElementById('balance').textContent = `₹${data.account.balance.toLocaleString()}`;
+            document.getElementById('bankInitial').textContent = data.account.bankName[0];
+            document.getElementById('accountRef').textContent = `NEXUS PRIVATE •••• ${data.account.accountNumber.slice(-4)}`;
+            document.getElementById('accountMeta').textContent = `STATUS: ${data.account.status.toUpperCase()} • TYPE: ${data.account.type.toUpperCase()}`;
+
+            const txHtml = data.transactions.map(t => `
+                <div class="px-10 py-6 flex items-center justify-between hover:bg-neutral-50 transition-colors">
+                    <div class="flex items-center gap-6">
+                        <div class="text-[10px] uppercase font-bold text-neutral-300 tracking-tighter border border-black/5 p-2 min-w-[64px] text-center">
+                            ${new Date(t.timestamp).toLocaleDateString(undefined, {month:'short', day:'numeric'})}
+                        </div>
+                        <div>
+                            <p class="font-bold text-sm tracking-tight">${t.type} Settlement</p>
+                            <p class="text-[10px] text-neutral-400 font-medium uppercase tracking-widest italic">REF: ••••${t.destAccount.slice(-4)}</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-lg font-light tracking-tighter italic ${t.sourceAccount === data.account.accountNumber ? 'text-red-800' : 'text-emerald-800'}">
+                            ${t.sourceAccount === data.account.accountNumber ? '−' : '+'}₹${t.amount.toLocaleString()}
+                        </p>
+                        <p class="text-[10px] text-neutral-300 font-black uppercase tracking-widest text-[8px]">SETTLED</p>
+                    </div>
+                </div>
+            `).join('');
+            document.getElementById('transactionBody').innerHTML = txHtml;
+        }
+
+        loadProfile();
+    </script>
+</body>
+</html>

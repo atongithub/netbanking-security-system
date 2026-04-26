@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus Bank | Login Page</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700;900&family=Playfair+Display:ital,wght@1,400;1,700;1,900&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #fbfaf8; color: #1a1a1a; }
+        .serif { font-family: 'Playfair Display', serif; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-6">
+    <div class="w-full max-w-lg">
+        <div class="mb-12 text-center md:text-left">
+            <p class="text-[10px] uppercase tracking-[0.4em] font-black text-neutral-400 mb-4">Secure Banking</p>
+            <h1 class="serif text-6xl italic tracking-tighter leading-none mb-4">Nexus Bank</h1>
+            <p class="text-sm font-medium text-neutral-500 max-w-xs leading-relaxed italic">
+                Secure portal for private wealth management and security.
+            </p>
+        </div>
+
+        <div class="bg-white border border-black/10 p-10 md:p-16 shadow-2xl">
+            <form id="loginForm" class="space-y-8">
+                <div>
+                    <label class="block text-[10px] uppercase font-bold tracking-widest text-neutral-400 mb-2">Username</label>
+                    <input type="text" id="username" required 
+                        class="w-full bg-transparent border-b border-black/10 py-3 text-lg outline-none focus:border-black transition-colors placeholder:text-neutral-200"
+                        placeholder="USERNAME">
+                </div>
+                <div>
+                    <label class="block text-[10px] uppercase font-bold tracking-widest text-neutral-400 mb-2">Password</label>
+                    <input type="password" id="password" required 
+                        class="w-full bg-transparent border-b border-black/10 py-3 text-lg outline-none focus:border-black transition-colors placeholder:text-neutral-200"
+                        placeholder="••••••••">
+                </div>
+                
+                <div id="error" class="hidden text-[10px] uppercase font-black text-red-800 tracking-widest animate-pulse">
+                    Access Denied: Invalid Credentials
+                </div>
+
+                <div class="pt-4">
+                    <button type="submit" 
+                        class="w-full bg-black text-white py-5 text-[10px] uppercase tracking-[0.3em] font-black hover:bg-neutral-800 transition-all active:scale-[0.98]">
+                        Authenticate Security Profile &rarr;
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div class="mt-12 flex justify-between items-center text-[10px] uppercase font-bold tracking-widest text-neutral-300">
+            <span>© 2026 NEXUS SECURITY</span>
+            <span>SYSTEM STATUS: ALPHA</span>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorEl = document.getElementById('error');
+
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    localStorage.setItem('nexus_role', data.role);
+                    localStorage.setItem('nexus_user', data.username);
+                    
+                    if (data.role === 'admin') {
+                        window.location.href = '/admin.html';
+                    } else {
+                        window.location.href = '/user.html';
+                    }
+                } else {
+                    errorEl.classList.remove('hidden');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Connection failure');
+            }
+        });
+    </script>
+</body>
+</html>

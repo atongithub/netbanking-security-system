@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus Bank | Database Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700;900&family=Playfair+Display:ital,wght@1,400;1,700;1,900&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #fbfaf8; color: #1a1a1a; }
+        .serif { font-family: 'Playfair Display', serif; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        .admin-accent { color: #5046e5; }
+    </style>
+</head>
+<body class="p-12 space-y-12 max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="flex justify-between items-start">
+        <div class="max-w-xl">
+            <p class="text-[10px] uppercase tracking-[0.3em] font-black admin-accent mb-2">Database Management</p>
+            <h1 class="serif text-5xl italic tracking-tight leading-none">System Tables</h1>
+            <p class="text-sm font-medium mt-4 text-neutral-500 leading-relaxed italic">
+                Full access to all database tables for administrative management and oversight.
+            </p>
+        </div>
+        <div class="text-right">
+            <p class="text-[10px] uppercase font-bold tracking-widest text-neutral-400">Status</p>
+            <p class="text-3xl font-light tracking-tighter italic">LIVE</p>
+            <button onclick="logout()" class="text-[10px] uppercase tracking-widest font-black mt-2 hover:underline">Logout</button>
+        </div>
+    </div>
+
+    <!-- Table Selector -->
+    <div class="bg-white border border-black/10 p-10">
+        <h2 class="serif text-2xl italic tracking-tight mb-6">Available Tables</h2>
+        <div id="tableList" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
+    </div>
+
+    <!-- Table Viewer -->
+    <div class="bg-white border border-black/10" id="tableViewerContainer" style="display: none;">
+        <div class="px-10 py-8 border-b border-black/10 flex justify-between items-center">
+            <h2 class="serif text-2xl italic tracking-tight" id="tableName">Select a table</h2>
+            <div class="flex gap-6 items-center">
+                <button onclick="refreshTable()" class="text-[10px] uppercase tracking-[0.3em] font-black hover:underline">Refresh</button>
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead>
+                    <tr class="border-b border-black/10 text-neutral-400 text-[10px] font-bold uppercase tracking-widest" id="headerRow">
+                        <!-- Headers populated by JS -->
+                    </tr>
+                </thead>
+                <tbody id="tableBody" class="divide-y divide-black/5">
+                    <!-- Data populated by JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <script>
+        if (localStorage.getItem('nexus_role') !== 'admin') window.location.href = '/index.html';
+
+        let currentTable = null, currentColumns = [], currentRows = [];
+
+        async function loadTables() {
+            const res = await fetch('/api/admin/tables');
+            const data = await res.json();
+            document.getElementById('tableList').innerHTML = data.tables.map(table =>
+                `<button onclick="loadTableData('${table}')" class="p-4 bg-white border border-black/10 text-left hover:bg-neutral-50 transition-colors">
+                    <p class="text-[10px] uppercase font-black tracking-widest text-neutral-400">${table}</p>
+                </button>`
+            ).join('');
+        }
+
+        async function loadTableData(table) {
+            const res = await fetch(`/api/admin/table/${table}`);
+            const data = await res.json();
+            currentTable = table;
+            currentColumns = data.columns;
+            currentRows = data.rows;
+            
+            console.log('Columns:', data.columns);
+            console.log('Rows:', data.rows);
+            
+            document.getElementById('tableName').textContent = `${table} (${data.count} rows)`;
+            document.getElementById('tableViewerContainer').style.display = 'block';
+            renderTable();
+        }
+
+        function renderTable() {
+            // Extract column names from the columns array
+            const colNames = currentColumns.map(col => {
+                // col might be an array like [fieldname, type, null, key, default, extra]
+                // or an object with properties
+                if (Array.isArray(col)) {
+                    return col[0];
+                } else if (typeof col === 'object' && col.Field) {
+                    return col.Field;
+                } else {
+                    return col[0];
+                }
+            });
+            
+            console.log('Column names:', colNames);
+            
+            // Render headers
+            const headerRow = document.getElementById('headerRow');
+            const headerHtml = colNames.map(col =>
+                `<th class="px-10 py-6 font-black">${col}</th>`
+            ).join('') + '<th class="px-10 py-6 font-black">Actions</th>';
+            headerRow.innerHTML = headerHtml;
+
+            // Render rows
+            const tableBody = document.getElementById('tableBody');
+            const rowsHtml = currentRows.map(row => {
+                const cells = colNames.map(col => {
+                    const value = row[col];
+                    return `<td class="px-10 py-6"><p class="text-sm">${value !== null && value !== undefined ? String(value).substring(0, 50) : '-'}</p></td>`;
+                }).join('');
+                const pkValue = row[colNames[0]];
+                return `<tr class="hover:bg-neutral-50/50 transition-colors">
+                    ${cells}
+                    <td class="px-10 py-6">
+                        <button onclick="deleteRow(${pkValue})" class="text-[10px] uppercase tracking-widest font-black text-red-600 hover:underline">Delete</button>
+                    </td>
+                </tr>`;
+            }).join('');
+            tableBody.innerHTML = rowsHtml;
+        }
+
+        async function deleteRow(pk) {
+            if (!confirm('Delete this row?')) return;
+            const res = await fetch(`/api/admin/table/${currentTable}/${pk}`, { method: 'DELETE' });
+            if (res.ok) {
+                loadTableData(currentTable);
+            } else {
+                alert('Delete failed');
+            }
+        }
+
+        function refreshTable() {
+            if (currentTable) loadTableData(currentTable);
+        }
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = '/index.html';
+        }
+
+        loadTables();
+    </script>
+</body>
+</html>
