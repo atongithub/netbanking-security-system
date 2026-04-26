@@ -48,7 +48,7 @@
                             <p id="accountRef" class="text-sm font-medium tracking-[0.2em] uppercase opacity-80">NEXUS PRIVATE •••• ----</p>
                             <p id="accountMeta" class="text-[9px] font-bold uppercase tracking-widest text-neutral-300">STATUS: INITIALIZING • TYPE: --</p>
                         </div>
-                        <img src="https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg" alt="Visa" class="h-4 opacity-20">
+                        <img src="https://cdn.worldvectorlogo.com/logos/visa-10.svg" alt="Visa" class="h-4 opacity-20">
                     </div>
                 </div>
             </div>
@@ -95,7 +95,14 @@
     </div>
 
     <script>
-        if (localStorage.getItem('nexus_role') !== 'user') window.location.href = '/index.html';
+        // Check authentication first
+        const role = localStorage.getItem('nexus_role');
+        const user = localStorage.getItem('nexus_user');
+        
+        if (role !== 'user' || !user) {
+            console.log('Not authenticated. Role:', role, 'User:', user);
+            window.location.href = '/index.html';
+        }
 
         function logout() {
             localStorage.clear();
@@ -107,36 +114,64 @@
         }, 1000);
 
         async function loadProfile() {
-            const user = localStorage.getItem('nexus_user');
-            const res = await fetch(`/api/user/${user}/overview`);
-            const data = await res.json();
+            try {
+                const user = localStorage.getItem('nexus_user');
+                console.log('Loading profile for user:', user);
+                
+                if (!user) {
+                    console.error('No user in localStorage');
+                    window.location.href = '/index.html';
+                    return;
+                }
+                
+                const url = `/api/user/${user}/overview`;
+                console.log('Fetching:', url);
+                
+                const res = await fetch(url);
+                console.log('Response status:', res.status);
+                
+                if (!res.ok) {
+                    console.error('API error:', res.status, res.statusText);
+                    return;
+                }
+                
+                const data = await res.json();
+                console.log('Profile data:', data);
+                
+                if (!data.account) {
+                    console.error('No account data in response');
+                    return;
+                }
 
-            document.getElementById('welcomeText').textContent = `Welcome back, ${data.profile.firstName}`;
-            document.getElementById('balance').textContent = `₹${data.account.balance.toLocaleString()}`;
-            document.getElementById('bankInitial').textContent = data.account.bankName[0];
-            document.getElementById('accountRef').textContent = `NEXUS PRIVATE •••• ${data.account.accountNumber.slice(-4)}`;
-            document.getElementById('accountMeta').textContent = `STATUS: ${data.account.status.toUpperCase()} • TYPE: ${data.account.type.toUpperCase()}`;
+                document.getElementById('welcomeText').textContent = `Welcome back, ${data.profile.firstName}`;
+                document.getElementById('balance').textContent = `₹${parseFloat(data.account.balance).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                document.getElementById('bankInitial').textContent = data.account.bankName[0];
+                document.getElementById('accountRef').textContent = `NEXUS PRIVATE •••• ${String(data.account.accountNumber).slice(-4)}`;
+                document.getElementById('accountMeta').textContent = `STATUS: ${data.account.status.toUpperCase()} • TYPE: ${data.account.type.toUpperCase()}`;
 
-            const txHtml = data.transactions.map(t => `
-                <div class="px-10 py-6 flex items-center justify-between hover:bg-neutral-50 transition-colors">
-                    <div class="flex items-center gap-6">
-                        <div class="text-[10px] uppercase font-bold text-neutral-300 tracking-tighter border border-black/5 p-2 min-w-[64px] text-center">
-                            ${new Date(t.timestamp).toLocaleDateString(undefined, {month:'short', day:'numeric'})}
+                const txHtml = data.transactions.map(t => `
+                    <div class="px-10 py-6 flex items-center justify-between hover:bg-neutral-50 transition-colors">
+                        <div class="flex items-center gap-6">
+                            <div class="text-[10px] uppercase font-bold text-neutral-300 tracking-tighter border border-black/5 p-2 min-w-[64px] text-center">
+                                ${new Date(t.timestamp).toLocaleDateString(undefined, {month:'short', day:'numeric'})}
+                            </div>
+                            <div>
+                                <p class="font-bold text-sm tracking-tight">${t.type} Settlement</p>
+                                <p class="text-[10px] text-neutral-400 font-medium uppercase tracking-widest italic">REF: ••••${String(t.destAccount).slice(-4)}</p>
+                            </div>
                         </div>
-                        <div>
-                            <p class="font-bold text-sm tracking-tight">${t.type} Settlement</p>
-                            <p class="text-[10px] text-neutral-400 font-medium uppercase tracking-widest italic">REF: ••••${t.destAccount.slice(-4)}</p>
+                        <div class="text-right">
+                            <p class="text-lg font-light tracking-tighter italic ${t.sourceAccount === data.account.accountNumber ? 'text-red-800' : 'text-emerald-800'}">
+                                ${t.sourceAccount === data.account.accountNumber ? '−' : '+'}₹${parseFloat(t.amount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                            </p>
+                            <p class="text-[10px] text-neutral-300 font-black uppercase tracking-widest text-[8px]">SETTLED</p>
                         </div>
                     </div>
-                    <div class="text-right">
-                        <p class="text-lg font-light tracking-tighter italic ${t.sourceAccount === data.account.accountNumber ? 'text-red-800' : 'text-emerald-800'}">
-                            ${t.sourceAccount === data.account.accountNumber ? '−' : '+'}₹${t.amount.toLocaleString()}
-                        </p>
-                        <p class="text-[10px] text-neutral-300 font-black uppercase tracking-widest text-[8px]">SETTLED</p>
-                    </div>
-                </div>
-            `).join('');
-            document.getElementById('transactionBody').innerHTML = txHtml;
+                `).join('');
+                document.getElementById('transactionBody').innerHTML = txHtml || '<div class="px-10 py-6 text-neutral-400 text-sm">No transactions</div>';
+            } catch (error) {
+                console.error('Profile load error:', error);
+            }
         }
 
         loadProfile();

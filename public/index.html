@@ -73,7 +73,7 @@
                 if (res.ok) {
                     const data = await res.json();
                     localStorage.setItem('nexus_role', data.role);
-                    localStorage.setItem('nexus_user', data.username);
+                    localStorage.setItem('nexus_user', data.user.username);
                     
                     if (data.role === 'admin') {
                         window.location.href = '/admin.html';
