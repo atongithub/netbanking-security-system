@@ -116,6 +116,7 @@
                     const data = await res.json();
                     localStorage.setItem('nexus_role', data.role);
                     localStorage.setItem('nexus_user', data.user.username);
+                    localStorage.setItem('nexus_user_id', data.user.id);
                     
                     if (data.role === 'admin') {
                         window.location.href = '/admin.html';
@@ -123,7 +124,14 @@
                         window.location.href = '/user.html';
                     }
                 } else {
+                    // Log failed attempt
+                    console.log('Login failed for user:', username);
                     errorEl.classList.remove('hidden');
+                    
+                    // Clear error message after 3 seconds
+                    setTimeout(() => {
+                        errorEl.classList.add('hidden');
+                    }, 3000);
                 }
             } catch (err) {
                 console.error(err);

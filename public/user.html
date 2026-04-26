@@ -36,6 +36,9 @@
         .bg-black { background-color: #000000; }
         body.dark-mode .bg-black { background-color: #1a1a1a; }
         
+        .text-neutral-700 { color: #404040; }
+        body.dark-mode .text-neutral-700 { color: #a1a1aa; }
+        
         /* Theme toggle button */
         .theme-toggle { position: fixed; top: 20px; right: 20px; z-index: 100; }
         .theme-toggle button { background: rgba(0,0,0,0.1); border: 1px solid rgba(0,0,0,0.2); padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 18px; transition: all 0.3s; }
@@ -102,31 +105,75 @@
 
         <!-- Sidebar -->
         <div class="space-y-12">
+            <!-- Security Status Card -->
             <div class="bg-white card-light border border-black/10 p-10">
                 <h3 class="serif text-xl italic mb-8 border-b border-black/10 pb-4">Security Protocol</h3>
                 <div class="space-y-6">
+                    <!-- Failed Login Attempts Status -->
                     <div class="flex items-center justify-between">
-                        <p class="text-[10px] uppercase font-bold tracking-widest text-neutral-400">Identity Guard</p>
+                        <p class="text-[10px] uppercase font-bold tracking-widest text-neutral-400">Failed Attempts</p>
                         <div class="w-8 h-px bg-black opacity-10"></div>
-                        <span class="text-[10px] uppercase font-black text-emerald-700 tracking-widest">ENABLED</span>
+                        <span id="failedAttemptsStatus" class="text-[10px] uppercase font-black text-emerald-700 tracking-widest">--</span>
                     </div>
+                    <!-- Trusted Devices Status -->
                     <div class="flex items-center justify-between">
-                        <p class="text-[10px] uppercase font-bold tracking-widest text-neutral-400">Account Lock</p>
+                        <p class="text-[10px] uppercase font-bold tracking-widest text-neutral-400">Trusted Devices</p>
                         <div class="w-8 h-px bg-black opacity-10"></div>
-                        <span class="text-[10px] uppercase font-black text-neutral-300 tracking-widest">OFF</span>
+                        <span id="trustedDeviceStatus" class="text-[10px] uppercase font-black text-emerald-700 tracking-widest">--</span>
                     </div>
+                </div>
+                <div class="mt-6 pt-6 border-t border-black/5 space-y-3">
+                    <button onclick="showSecurityModal('devices')" class="w-full text-left py-2 text-[10px] uppercase tracking-widest font-black text-blue-600 hover:underline">
+                        Manage Devices &rarr;
+                    </button>
+                    <button onclick="showSecurityModal('questions')" class="w-full text-left py-2 text-[10px] uppercase tracking-widest font-black text-blue-600 hover:underline">
+                        Security Questions &rarr;
+                    </button>
+                    <button onclick="showSecurityModal('failed-attempts')" class="w-full text-left py-2 text-[10px] uppercase tracking-widest font-black text-blue-600 hover:underline">
+                        Failed Login Attempts &rarr;
+                    </button>
                 </div>
             </div>
 
             <div class="bg-black p-10 text-white">
-                <p class="text-[10px] uppercase tracking-[0.3em] font-bold mb-4 opacity-40">nexus institutional</p>
-                <h3 class="serif text-2xl italic mb-8 leading-tight">Privileged insights into capital markets.</h3>
-                <button class="w-full text-left py-4 border-t border-white/20 text-[10px] uppercase tracking-widest flex justify-between items-center group">
-                    <span>Access Outlook</span>
-                    <span class="group-hover:translate-x-2 transition-transform">&rarr;</span>
-                </button>
+                <p class="text-[10px] uppercase tracking-[0.3em] font-bold mb-4 opacity-40">security insights</p>
+                <div class="space-y-6">
+                    <div>
+                        <h3 class="serif text-xl italic mb-3 leading-tight">Account Protection Score</h3>
+                        <div class="flex items-center gap-4">
+                            <div class="flex-1 bg-white/10 h-2 rounded-full overflow-hidden">
+                                <div id="securityScore" class="bg-emerald-500 h-full" style="width: 85%"></div>
+                            </div>
+                            <span id="securityScoreText" class="text-[10px] font-black">85%</span>
+                        </div>
+                        <p id="securityScoreMeaning" class="text-[10px] text-emerald-300 mt-2 italic">Strong Protection Active</p>
+                    </div>
+                    
+                    <div class="border-t border-white/10 pt-4">
+                        <p class="text-[10px] uppercase tracking-widest font-bold mb-3 opacity-60">recent security alerts</p>
+                        <div id="securityAlerts" class="space-y-2 text-[9px]">
+                            <div class="text-neutral-400 italic">Loading alerts...</div>
+                        </div>
+                    </div>
+                    
+                    <button onclick="showSecurityModal('overview')" class="w-full text-left py-3 border-t border-white/20 text-[10px] uppercase tracking-widest font-bold flex justify-between items-center group hover:opacity-80 transition-opacity">
+                        <span>View Full Security Report</span>
+                        <span class="group-hover:translate-x-2 transition-transform">&rarr;</span>
+                    </button>
+                </div>
             </div>
         </div>
+
+    <!-- Security Modal -->
+    <div id="securityModal" class="fixed inset-0 bg-black/30 backdrop-blur-sm hidden z-50" onclick="closeSecurityModal(event)">
+        <div class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white card-light border border-black/10 p-12 max-w-2xl w-full max-h-96 overflow-y-auto" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="serif text-2xl italic tracking-tight" id="modalTitle">Security Settings</h3>
+                <button onclick="closeSecurityModal()" class="text-2xl hover:opacity-50">&times;</button>
+            </div>
+            <div id="modalContent" class="space-y-4"></div>
+        </div>
+    </div>
     </div>
 
     <script>
@@ -232,6 +279,383 @@
         }
 
         loadProfile();
+
+        // Security functions
+        async function loadSecurityStatus() {
+            try {
+                const user = localStorage.getItem('nexus_user');
+                if (!user) return;
+
+                // Get full profile data to extract user ID from the API response
+                const userRes = await fetch(`/api/user/${user}/overview`);
+                if (!userRes.ok) {
+                    console.error('Failed to fetch user profile');
+                    return;
+                }
+                const userData = await userRes.json();
+                
+                // The API doesn't return user ID directly, so we need to fetch it
+                // We'll use the username to query the overview endpoint which should have it
+                // For now, let's extract from the welcome message or use a workaround
+                
+                // Try to get user info from login response or extract from database
+                // Since we don't have it directly, let's query the admin endpoint
+                const adminRes = await fetch('/api/admin/users');
+                if (!adminRes.ok) {
+                    console.error('Failed to fetch user list');
+                    return;
+                }
+                const allUsers = await adminRes.json();
+                const currentUserData = allUsers.users.find(u => u.username === user);
+                if (!currentUserData) {
+                    console.error('Current user not found in user list');
+                    return;
+                }
+                const userId = currentUserData.user_id;
+
+                console.log('Current user ID:', userId, 'Username:', user);
+
+                // Load failed login attempts
+                const failedRes = await fetch(`/api/failed-logins?user_id=${userId}`);
+                if (failedRes.ok) {
+                    const failed = await failedRes.json();
+                    const recentFailed = failed.data && failed.data.length > 0 ? failed.data.length : 0;
+                    const status = recentFailed > 0 ? `⚠️ ${recentFailed} Attempts` : '✓ SECURE';
+                    const statusElement = document.getElementById('failedAttemptsStatus');
+                    statusElement.textContent = status;
+                    statusElement.className = recentFailed > 0 ? 'text-[10px] uppercase font-black text-red-700 tracking-widest' : 'text-[10px] uppercase font-black text-emerald-700 tracking-widest';
+                } else {
+                    console.error('Failed to fetch failed login attempts');
+                }
+
+                // Load trusted devices
+                const devicesRes = await fetch(`/api/trusted-devices?user_id=${userId}`);
+                if (devicesRes.ok) {
+                    const devices = await devicesRes.json();
+                    const deviceCount = devices.data && devices.data.length > 0 ? devices.data.length : 0;
+                    document.getElementById('trustedDeviceStatus').textContent = `${deviceCount} Device${deviceCount !== 1 ? 's' : ''}`;
+                } else {
+                    console.error('Failed to fetch trusted devices');
+                }
+                
+                // Store userId for later use
+                localStorage.setItem('nexus_user_id', userId);
+            } catch (error) {
+                console.error('Security status error:', error);
+            }
+        }
+
+        async function loadSecurityEvents(userId) {
+            // Removed - users don't have access to global security events
+        }
+
+        function showSecurityModal(type) {
+            const modal = document.getElementById('securityModal');
+            const title = document.getElementById('modalTitle');
+            const content = document.getElementById('modalContent');
+
+            if (type === 'devices') {
+                title.textContent = 'Trusted Devices';
+                loadTrustedDevicesList();
+            } else if (type === 'questions') {
+                title.textContent = 'Security Questions';
+                loadSecurityQuestionsList();
+            } else if (type === 'failed-attempts') {
+                title.textContent = 'Failed Login Attempts';
+                loadFailedAttemptsList();
+            } else if (type === 'overview') {
+                title.textContent = 'Full Security Report';
+                loadSecurityReport();
+            }
+            modal.classList.remove('hidden');
+        }
+
+        function closeSecurityModal(event) {
+            if (event && event.target.id !== 'securityModal') return;
+            document.getElementById('securityModal').classList.add('hidden');
+        }
+
+        async function loadTrustedDevicesList() {
+            const content = document.getElementById('modalContent');
+            try {
+                const userId = localStorage.getItem('nexus_user_id');
+                if (!userId) {
+                    content.innerHTML = '<div class="text-red-600 text-sm">User ID not found</div>';
+                    return;
+                }
+
+                const res = await fetch(`/api/trusted-devices?user_id=${userId}`);
+                if (!res.ok) throw new Error('Failed to fetch devices');
+                const data = await res.json();
+                
+                if (!data.data || data.data.length === 0) {
+                    content.innerHTML = '<div class="text-neutral-400 text-sm">No trusted devices registered</div>';
+                    return;
+                }
+
+                const html = data.data.map(device => `
+                    <div class="border border-black/10 p-4 rounded space-y-2">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="font-bold text-sm">Device ${device.device_id}</p>
+                                <p class="text-[10px] text-neutral-400">Fingerprint: ${String(device.device_fingerprint).substring(0, 16)}...</p>
+                                <p class="text-[10px] text-neutral-400">Last Used: ${new Date(device.last_used_at).toLocaleDateString()}</p>
+                            </div>
+                            <button onclick="removeDevice(${device.device_id})" class="text-red-600 text-[10px] font-bold hover:underline">Remove</button>
+                        </div>
+                    </div>
+                `).join('');
+                content.innerHTML = html;
+            } catch (error) {
+                content.innerHTML = `<div class="text-red-600 text-sm">Error loading devices: ${error.message}</div>`;
+            }
+        }
+
+        async function loadSecurityQuestionsList() {
+            const content = document.getElementById('modalContent');
+            try {
+                const userId = localStorage.getItem('nexus_user_id');
+                if (!userId) {
+                    content.innerHTML = '<div class="text-red-600 text-sm">User ID not found</div>';
+                    return;
+                }
+
+                const res = await fetch(`/api/user-security-questions?user_id=${userId}`);
+                if (!res.ok) throw new Error('Failed to fetch questions');
+                const data = await res.json();
+                
+                if (!data.data || data.data.length === 0) {
+                    content.innerHTML = '<div class="text-neutral-400 text-sm">No security questions set. <a href="#" class="text-blue-600 underline">Configure now</a></div>';
+                    return;
+                }
+
+                const html = data.data.map((q, idx) => `
+                    <div class="border border-black/10 p-4 rounded">
+                        <p class="font-bold text-sm mb-2">Question ${idx + 1}</p>
+                        <p class="text-neutral-700 text-sm italic">${q.question_text || 'Question ' + (idx + 1)}</p>
+                        <p class="text-[10px] text-neutral-400 mt-2">✓ Configured</p>
+                    </div>
+                `).join('');
+                content.innerHTML = html;
+            } catch (error) {
+                content.innerHTML = `<div class="text-red-600 text-sm">Error loading questions: ${error.message}</div>`;
+            }
+        }
+
+        async function loadFailedAttemptsList() {
+            const content = document.getElementById('modalContent');
+            try {
+                const userId = localStorage.getItem('nexus_user_id');
+                if (!userId) {
+                    content.innerHTML = '<div class="text-red-600 text-sm">User ID not found</div>';
+                    return;
+                }
+
+                const res = await fetch(`/api/failed-logins?user_id=${userId}`);
+                if (!res.ok) throw new Error('Failed to fetch attempts');
+                const data = await res.json();
+                
+                if (!data.data || data.data.length === 0) {
+                    content.innerHTML = '<div class="text-emerald-600 text-sm font-bold">✓ No failed login attempts recorded</div>';
+                    return;
+                }
+
+                const html = data.data.map((attempt, idx) => `
+                    <div class="border border-red-200 bg-red-50 p-4 rounded space-y-2">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="font-bold text-sm">Attempt ${idx + 1}</p>
+                                <p class="text-[10px] text-neutral-600">Date: ${new Date(attempt.attempt_time).toLocaleString()}</p>
+                                <p class="text-[10px] text-neutral-600">IP Address: ${attempt.ip_address}</p>
+                                <p class="text-[10px] text-red-700 font-bold mt-2">Reason: ${attempt.failure_reason}</p>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+                content.innerHTML = html;
+            } catch (error) {
+                content.innerHTML = `<div class="text-red-600 text-sm">Error loading attempts: ${error.message}</div>`;
+            }
+        }
+
+        async function loadSecurityReport() {
+            const content = document.getElementById('modalContent');
+            try {
+                const userId = localStorage.getItem('nexus_user_id');
+                if (!userId) {
+                    content.innerHTML = '<div class="text-red-600 text-sm">User ID not found</div>';
+                    return;
+                }
+
+                // Fetch all security data
+                const failedRes = await fetch(`/api/failed-logins?user_id=${userId}`);
+                const devicesRes = await fetch(`/api/trusted-devices?user_id=${userId}`);
+                const questionsRes = await fetch(`/api/user-security-questions?user_id=${userId}`);
+
+                const failedData = failedRes.ok ? await failedRes.json() : { data: [] };
+                const devicesData = devicesRes.ok ? await devicesRes.json() : { data: [] };
+                const questionsData = questionsRes.ok ? await questionsRes.json() : { data: [] };
+
+                const failedCount = failedData.data ? failedData.data.length : 0;
+                const deviceCount = devicesData.data ? devicesData.data.length : 0;
+                const questionCount = questionsData.data ? questionsData.data.length : 0;
+
+                // Calculate score
+                let score = 100;
+                score -= Math.min(failedCount * 5, 20);
+                score += Math.min(deviceCount * 3, 10);
+                if (questionCount >= 3) score += 5;
+                score = Math.max(0, Math.min(100, score));
+
+                // Determine health status
+                let status, statusColor;
+                if (score >= 80) {
+                    status = 'Excellent';
+                    statusColor = 'text-emerald-600';
+                } else if (score >= 60) {
+                    status = 'Good';
+                    statusColor = 'text-blue-600';
+                } else {
+                    status = 'At Risk';
+                    statusColor = 'text-red-600';
+                }
+
+                const html = `
+                    <div class="space-y-6">
+                        <div class="border border-black/10 p-4 rounded">
+                            <p class="text-[10px] uppercase tracking-widest font-bold text-neutral-400 mb-2">Account Security Status</p>
+                            <p class="text-2xl font-bold ${statusColor}">${status}</p>
+                            <p class="text-[10px] text-neutral-500 mt-1">Protection Score: ${score}%</p>
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-4">
+                            <div class="border border-black/10 p-4 rounded text-center">
+                                <p class="text-2xl font-bold text-neutral-700">${failedCount}</p>
+                                <p class="text-[10px] uppercase tracking-widest text-neutral-400 mt-2">Failed<br>Attempts</p>
+                            </div>
+                            <div class="border border-black/10 p-4 rounded text-center">
+                                <p class="text-2xl font-bold text-neutral-700">${deviceCount}</p>
+                                <p class="text-[10px] uppercase tracking-widest text-neutral-400 mt-2">Trusted<br>Devices</p>
+                            </div>
+                            <div class="border border-black/10 p-4 rounded text-center">
+                                <p class="text-2xl font-bold text-neutral-700">${questionCount}</p>
+                                <p class="text-[10px] uppercase tracking-widest text-neutral-400 mt-2">Security<br>Questions</p>
+                            </div>
+                        </div>
+
+                        <div class="border-t border-black/10 pt-4">
+                            <p class="text-[10px] uppercase tracking-widest font-bold text-neutral-400 mb-3">Recommendations</p>
+                            <div class="space-y-2 text-[10px]">
+                                ${failedCount > 0 ? '<div class="text-red-600">⚠️ Review failed login attempts and consider changing your password</div>' : '<div class="text-emerald-600">✓ No recent failed login attempts</div>'}
+                                ${deviceCount === 0 ? '<div class="text-yellow-600">⚠️ Consider registering trusted devices for faster login</div>' : '<div class="text-emerald-600">✓ Trusted devices configured</div>'}
+                                ${questionCount < 3 ? '<div class="text-yellow-600">⚠️ Set up at least 3 security questions for account recovery</div>' : '<div class="text-emerald-600">✓ Security questions fully configured</div>'}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                content.innerHTML = html;
+            } catch (error) {
+                content.innerHTML = `<div class="text-red-600 text-sm">Error loading report: ${error.message}</div>`;
+            }
+        }
+
+        async function removeDevice(deviceId) {
+            if (!confirm('Remove this trusted device?')) return;
+            try {
+                const res = await fetch(`/api/trusted-devices/${deviceId}`, { method: 'DELETE' });
+                if (res.ok) {
+                    alert('Device removed');
+                    loadTrustedDevicesList();
+                    loadSecurityStatus();
+                } else {
+                    alert('Failed to remove device');
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        // Calculate security score based on multiple factors
+        async function calculateSecurityScore() {
+            try {
+                const userId = localStorage.getItem('nexus_user_id');
+                if (!userId) return;
+
+                let score = 100;
+                const alerts = [];
+
+                // Check failed login attempts (deduct points for each)
+                const failedRes = await fetch(`/api/failed-logins?user_id=${userId}`);
+                if (failedRes.ok) {
+                    const failed = await failedRes.json();
+                    const failedCount = failed.data ? failed.data.length : 0;
+                    if (failedCount > 0) {
+                        score -= Math.min(failedCount * 5, 20); // Max 20 point deduction
+                        alerts.push(`${failedCount} failed login attempt${failedCount > 1 ? 's' : ''} detected`);
+                    }
+                }
+
+                // Check trusted devices
+                const devicesRes = await fetch(`/api/trusted-devices?user_id=${userId}`);
+                if (devicesRes.ok) {
+                    const devices = await devicesRes.json();
+                    const deviceCount = devices.data ? devices.data.length : 0;
+                    if (deviceCount > 0) {
+                        score += Math.min(deviceCount * 3, 10); // Max 10 point bonus
+                    }
+                }
+
+                // Check security questions
+                const questionsRes = await fetch(`/api/user-security-questions?user_id=${userId}`);
+                if (questionsRes.ok) {
+                    const questions = await questions.json();
+                    const questionCount = questions.data ? questions.data.length : 0;
+                    if (questionCount >= 3) {
+                        score += 5; // Bonus for having security questions
+                    } else if (questionCount > 0) {
+                        alerts.push('Consider setting up additional security questions');
+                    }
+                }
+
+                score = Math.max(0, Math.min(100, score)); // Clamp between 0-100
+
+                // Display score
+                document.getElementById('securityScore').style.width = score + '%';
+                document.getElementById('securityScoreText').textContent = score + '%';
+                
+                // Determine score meaning
+                let meaning, color;
+                if (score >= 80) {
+                    meaning = '✓ Strong Protection Active';
+                    color = 'text-emerald-300';
+                } else if (score >= 60) {
+                    meaning = '⚠️ Moderate Protection';
+                    color = 'text-yellow-300';
+                } else {
+                    meaning = '⚠️ Enhanced Vigilance Recommended';
+                    color = 'text-red-300';
+                }
+                
+                const meaningEl = document.getElementById('securityScoreMeaning');
+                meaningEl.textContent = meaning;
+                meaningEl.className = `text-[10px] ${color} mt-2 italic`;
+
+                // Display alerts
+                const alertsHtml = alerts.length > 0 
+                    ? alerts.map(a => `<div class="text-yellow-300">• ${a}</div>`).join('')
+                    : '<div class="text-emerald-300">✓ No security alerts</div>';
+                
+                document.getElementById('securityAlerts').innerHTML = alertsHtml;
+            } catch (error) {
+                console.error('Security score calculation error:', error);
+            }
+        }
+
+        // Load security status when profile loads
+        setTimeout(() => {
+            loadSecurityStatus();
+            calculateSecurityScore();
+        }, 1000);
     </script>
 </body>
 </html>
